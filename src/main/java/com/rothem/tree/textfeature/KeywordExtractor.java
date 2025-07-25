@@ -1,5 +1,6 @@
 package com.rothem.tree.textfeature;
 
+import com.rothem.tree.textfeature.data.KeywordExtractionResult;
 import kr.co.shineware.nlp.komoran.constant.DEFAULT_MODEL;
 import kr.co.shineware.nlp.komoran.core.Komoran;
 import kr.co.shineware.nlp.komoran.model.Token;
@@ -28,7 +29,25 @@ public class KeywordExtractor {
             "yourself","yourselves"
     );
 
-    public static Map<String, Object> extractKeywords(String text) {
+    public static List<String> extractUniqueKeywords(String text) {
+        var result = extractKeywords(text);
+
+        Set<String> uniqueKeywords = new LinkedHashSet<>();
+
+        if (result.getNouns() != null) {
+            uniqueKeywords.addAll(result.getNouns());
+        }
+
+        if (result.getRegex() != null) {
+            for (List<String> values : result.getRegex().values()) {
+                uniqueKeywords.addAll(values);
+            }
+        }
+
+        return new ArrayList<>(uniqueKeywords);
+    }
+
+    public static KeywordExtractionResult extractKeywords(String text) {
         Map<String, Object> result = new LinkedHashMap<>();
 
         Map<String, List<String>> regexMatches = RegexExtractor.extractRegexMatches(text);
@@ -53,9 +72,7 @@ public class KeywordExtractor {
             used.add(word + ":" + start);
         }
 
-        result.put("nouns", nouns);
-        result.put("regex", regexMatches);
-        return result;
+        return new KeywordExtractionResult(nouns, regexMatches);
     }
 
     private static boolean isValidNounTag(String tag) {

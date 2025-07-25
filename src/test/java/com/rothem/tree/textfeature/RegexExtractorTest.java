@@ -13,8 +13,8 @@ public class RegexExtractorTest {
         String text = "회의는 2024/11/27에 열렸습니다.";
         Map<String, List<String>> result = RegexExtractor.extractRegexMatches(text);
 
-        assertThat(result.get("date")).contains("2024/11/27");
-        assertThat(result.get("short_date_6")).isEmpty();
+        assertThat(result.get(RegexExtractorKey.DATE.keyName())).contains("2024/11/27");
+        assertThat(result.get(RegexExtractorKey.SHORT_DATE_6.keyName())).isEmpty();
     }
 
     @Test
@@ -22,8 +22,8 @@ public class RegexExtractorTest {
         String text = "파일명은 미래보고서_991231.pptx입니다.";
         Map<String, List<String>> result = RegexExtractor.extractRegexMatches(text);
 
-        assertThat(result.get("short_date_6")).contains("991231");
-        assertThat(result.get("date")).isEmpty();
+        assertThat(result.get(RegexExtractorKey.SHORT_DATE_6.keyName())).contains("991231");
+        assertThat(result.get(RegexExtractorKey.DATE.keyName())).isEmpty();
     }
 
     @Test
@@ -31,8 +31,8 @@ public class RegexExtractorTest {
         String text = "파일명은 미래보고서_991332.pptx입니다.";
         Map<String, List<String>> result = RegexExtractor.extractRegexMatches(text);
 
-        assertThat(result.get("short_date_6")).isEmpty(); 
-        assertThat(result.get("number")).contains("991332");
+        assertThat(result.get(RegexExtractorKey.SHORT_DATE_6.keyName())).isEmpty();
+        assertThat(result.get(RegexExtractorKey.NUMBER.keyName())).contains("991332");
     }
 
     @Test
@@ -40,8 +40,8 @@ public class RegexExtractorTest {
         String text = "문의는 contact@example.com 또는 https://example.com 참조";
         Map<String, List<String>> result = RegexExtractor.extractRegexMatches(text);
 
-        assertThat(result.get("email")).contains("contact@example.com");
-        assertThat(result.get("url")).contains("https://example.com");
+        assertThat(result.get(RegexExtractorKey.EMAIL.keyName())).contains("contact@example.com");
+        assertThat(result.get(RegexExtractorKey.URL.keyName())).contains("https://example.com");
     }
 
     @Test
@@ -49,8 +49,8 @@ public class RegexExtractorTest {
         String text = "전화번호는 010-1234-5678이고, 계좌는 020-111-222333 입니다.";
         Map<String, List<String>> result = RegexExtractor.extractRegexMatches(text);
 
-        assertThat(result.get("phone_kr")).contains("010-1234-5678");
-        assertThat(result.get("account")).contains("020-111-222333");
-        assertThat(result.get("number")).doesNotContain("5678"); 
+        assertThat(result.get(RegexExtractorKey.PHONE_KR.keyName())).contains("010-1234-5678");
+        assertThat(result.get(RegexExtractorKey.ACCOUNT.keyName())).contains("020-111-222333");
+        assertThat(result.get(RegexExtractorKey.NUMBER.keyName())).doesNotContain("5678");
     }
 }
