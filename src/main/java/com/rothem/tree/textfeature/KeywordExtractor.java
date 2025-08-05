@@ -5,7 +5,10 @@ import kr.co.shineware.nlp.komoran.constant.DEFAULT_MODEL;
 import kr.co.shineware.nlp.komoran.core.Komoran;
 import kr.co.shineware.nlp.komoran.model.Token;
 
+import java.text.Normalizer;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class KeywordExtractor {
     private static final Komoran komoran = new Komoran(DEFAULT_MODEL.FULL);
@@ -75,13 +78,51 @@ public class KeywordExtractor {
         return new KeywordExtractionResult(nouns, regexMatches);
     }
 
+    public static List<String> splitFilenameToTokens(String filename) {
+        Set<String> result = new LinkedHashSet<>();
+
+        String cleaned = Normalizer.normalize(filename, Normalizer.Form.NFC);
+
+        cleaned = cleaned
+                .replaceAll("[_\\-\\[\\]\\{\\}\\(\\)<>~!@#$%^&*+=|;:'\",.?/`]", " ")
+                .replaceAll("[“”‘’]", " ")
+                .replaceAll("[^\\w\\uAC00-\\uD7A3\\u1100-\\u11FF\\u3130-\\u318F\\s]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        for (String token : cleaned.split("\\s+")) {
+            if (token.isEmpty()) continue;
+            result.add(token);
+
+            Matcher m = Pattern.compile("[가-힣]+|[a-zA-Z]+|[0-9]+").matcher(token);
+            List<String> subTokens = new ArrayList<>();
+            int blocks = 0, hangul = 0, latin = 0, digit = 0;
+
+            while (m.find()) {
+                String sub = m.group();
+                blocks++;
+                if (sub.matches("[가-힣]+")) hangul++;
+                else if (sub.matches("[a-zA-Z]+")) latin++;
+                else if (sub.matches("[0-9]+")) digit++;
+                subTokens.add(sub);
+            }
+
+            if (blocks > 1 && hangul > 0 && (latin > 0 || digit > 0)) {
+                for (String sub : subTokens) {
+                    result.add(sub);
+                }
+            }
+        }
+        return new ArrayList<>(result);
+    }
+
     private static boolean isValidNounTag(String tag) {
-        return Set.of("NNG", "NNP", "NP", "NR", "SH", "SL").contains(tag);
+        return Set.of("NNG", "NNP", "NP", "NR", "SH", "SL", "NA").contains(tag);
     }
 
     private static boolean isMeaningfulWord(String word) {
-        if (word.matches("\\d{2,}")) return false; // 숫자만 두 자리 이상은 무시
-        if (word.matches("[a-zA-Z]{2,}")) {
+        if (word.matches("\\d{2,}")) return false; // 숫자만 두 자리 이상
+        if (word.matches("[a-zA-Z'\\-\\.]+")) {
             return !EN_STOPWORDS.contains(word.toLowerCase());
         }
         return true;
