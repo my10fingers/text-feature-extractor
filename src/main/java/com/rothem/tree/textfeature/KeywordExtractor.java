@@ -32,6 +32,8 @@ public class KeywordExtractor {
             "yourself","yourselves"
     );
 
+    private static final Pattern KOREAN_JOSA_SUFFIX = Pattern.compile("(.+?)(?:은|는|이|가|을|를|의|에|에서|에게|한테|으로|로|과|와|도|만|까지|부터)$");
+
     public static List<String> extractUniqueKeywords(String text) {
         var result = extractKeywords(text);
 
@@ -51,21 +53,22 @@ public class KeywordExtractor {
     }
 
     public static KeywordExtractionResult extractKeywords(String text) {
-        Map<String, Object> result = new LinkedHashMap<>();
+        // Map<String, Object> result = new LinkedHashMap<>();
 
         Map<String, List<String>> regexMatches = RegexExtractor.extractRegexMatches(text);
         List<int[]> occupiedSpans = RegexExtractor.getOccupiedSpans(text);
 
-        List<String> nouns = new ArrayList<>();
+        LinkedHashSet<String> nouns = new LinkedHashSet<>();
         Set<String> used = new HashSet<>();
 
         List<Token> tokens = komoran.analyze(text).getTokenList();
 
         for (Token token : tokens) {
-            String word = token.getMorph();
+            String word = normalizeToken(token.getMorph());
             String tag = token.getPos();
             int start = token.getBeginIndex();
 
+            if (word.isEmpty()) continue;
             if (!isValidNounTag(tag)) continue;
             if (used.contains(word + ":" + start)) continue;
             if (isInOccupied(start, occupiedSpans)) continue;
@@ -75,7 +78,17 @@ public class KeywordExtractor {
             used.add(word + ":" + start);
         }
 
-        return new KeywordExtractionResult(nouns, regexMatches);
+        if (looksLikeFilename(text)) {
+            for (String token : splitFilenameToTokens(text)) {
+                String normalized = normalizeToken(token);
+                if (!isMeaningfulFilenameToken(normalized)) continue;
+                nouns.add(normalized);
+            }
+        }
+
+        removeRedundantShortLatinTokens(nouns);
+
+        return new KeywordExtractionResult(new ArrayList<>(nouns), regexMatches);
     }
 
     public static List<String> splitFilenameToTokens(String filename) {
@@ -116,6 +129,23 @@ public class KeywordExtractor {
         return new ArrayList<>(result);
     }
 
+    private static String normalizeToken(String word) {
+        if (word == null) return "";
+
+        String cleaned = Normalizer.normalize(word, Normalizer.Form.NFC)
+                .replaceAll("^[\\p{Punct}“”‘’]+", "")
+                .replaceAll("[\\p{Punct}“”‘’]+$", "");
+
+        if (cleaned.matches("^[가-힣]{2,}$")) {
+            Matcher m = KOREAN_JOSA_SUFFIX.matcher(cleaned);
+            if (m.matches() && m.group(1).length() >= 2) {
+                cleaned = m.group(1);
+            }
+        }
+
+        return cleaned.trim();
+    }
+
     private static boolean isValidNounTag(String tag) {
         return Set.of("NNG", "NNP", "NP", "NR", "SH", "SL", "NA").contains(tag);
     }
@@ -126,6 +156,39 @@ public class KeywordExtractor {
             return !EN_STOPWORDS.contains(word.toLowerCase());
         }
         return true;
+    }
+
+    private static boolean isMeaningfulFilenameToken(String word) {
+        if (word == null || word.isEmpty()) return false;
+        if (word.matches("[가-힣]")) return false; // avoid single-syllable noise like "팀"
+        if (word.matches("\\d{2,}")) return true; // allow numeric tokens in filenames
+        return isMeaningfulWord(word);
+    }
+
+    private static boolean looksLikeFilename(String text) {
+        if (text == null) return false;
+        return Pattern.compile("\\.[A-Za-z0-9]{2,6}(\\s|$)").matcher(text).find();
+    }
+
+    private static void removeRedundantShortLatinTokens(LinkedHashSet<String> nouns) {
+        if (nouns.isEmpty()) return;
+
+        Set<String> longer = new HashSet<>();
+        for (String n : nouns) {
+            if (n.matches("[A-Za-z0-9]{2,}")) {
+                longer.add(n.toLowerCase());
+            }
+        }
+
+        Iterator<String> it = nouns.iterator();
+        while (it.hasNext()) {
+            String n = it.next();
+            if (n.matches("[A-Za-z]")) {
+                String lower = n.toLowerCase();
+                boolean hasLonger = longer.stream().anyMatch(l -> l.startsWith(lower));
+                if (hasLonger) it.remove();
+            }
+        }
     }
 
     private static boolean isInOccupied(int pos, List<int[]> spans) {

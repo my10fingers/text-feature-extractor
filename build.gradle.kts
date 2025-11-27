@@ -20,7 +20,12 @@ repositories {
 dependencies {
     implementation("com.github.shin285:KOMORAN:3.3.9")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")           // api + params (집합 모듈)
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")       // ★ 엔진
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")   // ★ 런처(Gradle 9에서 유용)
+
+//    testImplementation("org.junit.jupiter:junit-jupiter:5.10.0")
     testImplementation("org.assertj:assertj-core:3.25.3")
 
     compileOnly("org.projectlombok:lombok:1.18.30")

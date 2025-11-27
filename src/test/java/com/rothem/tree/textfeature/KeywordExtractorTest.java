@@ -26,10 +26,14 @@ public class KeywordExtractorTest {
 
     @ParameterizedTest()
     @ValueSource(strings = {
+            "EML 저장용 첨부 (제목은 MSG).eml",
             "파일명은 미래보고서_991231.pptx이고, 회의는 2024/11/27(화요일)에 열렸습니다.",
-            "200622 주요 현안 법무RM팀 v2 pptx",
-            "주요 현안 200622 법무RM팀 v2 pptx",
-    "주요 현안 법무RM팀"}
+            "200622 주요 현안 법무RM팀 v2.pptx",
+            "주요 현안 200622 법무RM팀 v2.pptx",
+            "주요 현안 법무RM팀",
+            "2012년 상반기 관리등급 결정 계획서 pptx",
+            "우리나라는 좋은 나라입니다. 대한민국 만세입니다."
+    }
     )
     public void testExtractionWithRegexAndPrint(String input) {
 //        String input = "200622_주요 현안_법무RM팀-v2.pptx".replace('_', ' ');
