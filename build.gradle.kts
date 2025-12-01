@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.github.my10fingers"
-version = "0.2.0"
+version = "0.2.1"
 
 java {
     toolchain {

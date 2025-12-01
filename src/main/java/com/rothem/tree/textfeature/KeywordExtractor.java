@@ -107,7 +107,9 @@ public class KeywordExtractor {
     }
 
     public static KeywordExtractionResult extractKeywords(String text) {
-        // Map<String, Object> result = new LinkedHashMap<>();
+        if (text == null || text.isBlank()) {
+            return new KeywordExtractionResult(Collections.emptyList(), Collections.emptyMap());
+        }
 
         Map<String, List<String>> regexMatches = RegexExtractor.extractRegexMatches(text);
         List<int[]> occupiedSpans = RegexExtractor.getOccupiedSpans(text);
@@ -115,7 +117,7 @@ public class KeywordExtractor {
         LinkedHashSet<String> nouns = new LinkedHashSet<>();
         Set<String> used = new HashSet<>();
 
-        List<Token> tokens = komoran.analyze(text).getTokenList();
+        List<Token> tokens = analyzeSafely(text);
 
         for (Token token : tokens) {
             String word = normalizeToken(token.getMorph());
@@ -144,6 +146,17 @@ public class KeywordExtractor {
         removeRedundantShortLatinTokens(nouns);
 
         return new KeywordExtractionResult(new ArrayList<>(nouns), regexMatches);
+    }
+
+    // KOMORAN occasionally throws NPE internally on malformed input; guard and fall back to empty.
+    private static List<Token> analyzeSafely(String text) {
+        try {
+            var result = komoran.analyze(text);
+            if (result == null || result.getTokenList() == null) return List.of();
+            return result.getTokenList();
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public static List<String> splitFilenameToTokens(String filename) {
