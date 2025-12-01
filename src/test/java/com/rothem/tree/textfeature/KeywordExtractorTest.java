@@ -2,6 +2,7 @@ package com.rothem.tree.textfeature;
 
 import java.util.List;
 import java.util.Map;
+import java.nio.file.Paths;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,6 +23,30 @@ public class KeywordExtractorTest {
         assertThat(nouns).contains("파일", "미래", "보고서", "회의");
         assertThat(regex.get(RegexExtractorKey.SHORT_DATE_6.keyName())).contains("991231");
         assertThat(regex.get(RegexExtractorKey.DATE.keyName())).contains("2024/11/27");
+    }
+
+    @Test
+    public void testUserDictionaryFileIsApplied() {
+        String customWord = "테스트용단어";
+        String userDicPath = Paths.get("src", "test", "resources", "user_test.dic").toString();
+
+        KeywordExtractor.setUserDictionaryPath(userDicPath);
+
+        String input = "이 문장은 테스트용단어 를 포함합니다.";
+        var result = KeywordExtractor.extractKeywords(input);
+
+        assertThat(result.getNouns()).contains(customWord, "테스트용", "단어");
+    }
+
+    @Test
+    public void testUserDictionaryWordIsIncluded() {
+        String customWord = "하이퍼그로스플랜";
+        KeywordExtractor.addUserDictionary(List.of(customWord));
+
+        String input = "우리 팀은 하이퍼그로스플랜을 준비 중입니다.";
+        var result = KeywordExtractor.extractKeywords(input);
+
+        assertThat(result.getNouns()).contains(customWord);
     }
 
     @ParameterizedTest()

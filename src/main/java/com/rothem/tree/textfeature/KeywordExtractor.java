@@ -5,6 +5,10 @@ import kr.co.shineware.nlp.komoran.constant.DEFAULT_MODEL;
 import kr.co.shineware.nlp.komoran.core.Komoran;
 import kr.co.shineware.nlp.komoran.model.Token;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.Normalizer;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -12,6 +16,9 @@ import java.util.regex.Pattern;
 
 public class KeywordExtractor {
     private static final Komoran komoran = new Komoran(DEFAULT_MODEL.FULL);
+    private static final LinkedHashSet<String> userDictionary = new LinkedHashSet<>();
+    private static final LinkedHashSet<String> userDictionaryWords = new LinkedHashSet<>();
+    private static Path userDictionaryFile;
 
     private static final Set<String> EN_STOPWORDS = Set.of(
             "a","about","above","after","again","against","all","am","an","and","any","are","aren't",
@@ -33,6 +40,53 @@ public class KeywordExtractor {
     );
 
     private static final Pattern KOREAN_JOSA_SUFFIX = Pattern.compile("(.+?)(?:은|는|이|가|을|를|의|에|에서|에게|한테|으로|로|과|와|도|만|까지|부터)$");
+
+    /**
+     * Adds user-defined words into KOMORAN's dictionary.
+     * Accepts plain words (automatically tagged as NNP) or already-formatted entries (e.g. "단어\tNNP").
+     */
+    public static synchronized void addUserDictionary(Collection<String> userWords) {
+        if (userWords == null || userWords.isEmpty()) return;
+
+        boolean updated = false;
+        for (String word : userWords) {
+            String normalized = normalizeUserDictionaryEntry(word);
+            if (normalized != null) {
+                updated |= userDictionary.add(normalized);
+                String baseWord = normalized.split("\\s+")[0];
+                if (!baseWord.isEmpty()) {
+                    userDictionaryWords.add(baseWord);
+                }
+            }
+        }
+
+        if (updated) {
+            applyUserDictionary();
+        }
+    }
+
+    /**
+     * Applies an existing KOMORAN user dictionary file.
+     *
+     * @param userDictionaryPath path to a KOMORAN-format user dictionary file
+     */
+    public static synchronized void setUserDictionaryPath(String userDictionaryPath) {
+        if (userDictionaryPath == null || userDictionaryPath.isBlank()) return;
+        userDictionaryWords.clear();
+        try {
+            for (String line : Files.readAllLines(Path.of(userDictionaryPath), StandardCharsets.UTF_8)) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty()) continue;
+                String baseWord = trimmed.split("\\s+")[0];
+                if (!baseWord.isEmpty()) {
+                    userDictionaryWords.add(baseWord);
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to read user dictionary file: " + userDictionaryPath, e);
+        }
+        komoran.setUserDic(userDictionaryPath);
+    }
 
     public static List<String> extractUniqueKeywords(String text) {
         var result = extractKeywords(text);
@@ -75,6 +129,7 @@ public class KeywordExtractor {
             if (!isMeaningfulWord(word)) continue;
 
             nouns.add(word);
+            addUserDictionarySubTokens(word, nouns);
             used.add(word + ":" + start);
         }
 
@@ -168,6 +223,37 @@ public class KeywordExtractor {
     private static boolean looksLikeFilename(String text) {
         if (text == null) return false;
         return Pattern.compile("\\.[A-Za-z0-9]{2,6}(\\s|$)").matcher(text).find();
+    }
+
+    private static String normalizeUserDictionaryEntry(String entry) {
+        if (entry == null) return null;
+        String trimmed = entry.trim();
+        if (trimmed.isEmpty()) return null;
+        if (trimmed.contains("\t") || trimmed.contains(" ")) return trimmed;
+        return trimmed + "\tNNP";
+    }
+
+    private static void applyUserDictionary() {
+        try {
+            if (userDictionaryFile == null) {
+                userDictionaryFile = Files.createTempFile("keyword-extractor-userdic", ".txt");
+                userDictionaryFile.toFile().deleteOnExit();
+            }
+            Files.writeString(userDictionaryFile, String.join("\n", userDictionary), StandardCharsets.UTF_8);
+            komoran.setUserDic(userDictionaryFile.toString());
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to apply user dictionary", e);
+        }
+    }
+
+    private static void addUserDictionarySubTokens(String word, LinkedHashSet<String> nouns) {
+        if (userDictionaryWords.isEmpty()) return;
+        for (String base : userDictionaryWords) {
+            if (base.equals(word)) continue;
+            if (!word.contains(base)) continue;
+            if (!isMeaningfulWord(base)) continue;
+            nouns.add(base);
+        }
     }
 
     private static void removeRedundantShortLatinTokens(LinkedHashSet<String> nouns) {
