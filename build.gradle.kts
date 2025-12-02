@@ -4,11 +4,11 @@ plugins {
 }
 
 group = "com.github.my10fingers"
-version = "0.2.1"
+version = "0.2.2"
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 

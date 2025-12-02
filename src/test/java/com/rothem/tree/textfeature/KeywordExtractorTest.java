@@ -35,7 +35,7 @@ public class KeywordExtractorTest {
         String input = "이 문장은 테스트용단어 를 포함합니다.";
         var result = KeywordExtractor.extractKeywords(input);
 
-        assertThat(result.getNouns()).contains(customWord, "테스트용", "단어");
+        assertThat(result.getNouns()).contains(customWord, "단어");
     }
 
     @Test
@@ -170,5 +170,24 @@ public class KeywordExtractorTest {
 //        assertTrue(nouns.size() > 0);
         System.out.println(input + ": " + nouns);
         System.out.println(regex);
+    }
+
+    @Test
+    public void testKeywordsDoNotContainWhitespace() {
+        String input = """
+                동해물과 백두산이 마르고 닳도록
+
+                하느님이 보우하사 우리나라 만세
+
+                무궁화 삼천리 화려 강산
+
+                대한 사람 대한으로 길이 보전하세
+                """;
+
+        var result = KeywordExtractor.extractKeywords(input);
+
+        assertThat(result.getNouns())
+                .allMatch(noun -> !noun.contains(" "))
+                .contains("동해물", "백두산", "하느님", "우리나라", "무궁화", "삼천리", "강산", "대한", "사람");
     }
 }

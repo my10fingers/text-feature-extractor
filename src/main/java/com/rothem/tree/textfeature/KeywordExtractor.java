@@ -143,6 +143,7 @@ public class KeywordExtractor {
             }
         }
 
+        splitWhitespaceTokens(nouns);
         removeRedundantShortLatinTokens(nouns);
 
         return new KeywordExtractionResult(new ArrayList<>(nouns), regexMatches);
@@ -288,6 +289,27 @@ public class KeywordExtractor {
                 if (hasLonger) it.remove();
             }
         }
+    }
+
+    private static void splitWhitespaceTokens(LinkedHashSet<String> nouns) {
+        if (nouns.isEmpty()) return;
+
+        LinkedHashSet<String> rebuilt = new LinkedHashSet<>();
+        for (String noun : nouns) {
+            if (noun.contains(" ")) {
+                for (String part : noun.split("\\s+")) {
+                    String normalized = normalizeToken(part);
+                    if (normalized.isEmpty()) continue;
+                    if (!isMeaningfulWord(normalized)) continue;
+                    rebuilt.add(normalized);
+                }
+            } else {
+                rebuilt.add(noun);
+            }
+        }
+
+        nouns.clear();
+        nouns.addAll(rebuilt);
     }
 
     private static boolean isInOccupied(int pos, List<int[]> spans) {
